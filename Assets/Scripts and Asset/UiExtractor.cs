@@ -14,12 +14,19 @@ public class UiExtractor : MonoBehaviour
     public TMP_InputField DOD;
     public TMP_InputField Bio;
 
+    public TMP_InputField Father;
+    public TMP_InputField Mother;
+
+    public int? currentPersonId;
     public int? parent1ID = null;
     public int? parent2ID = null;
     public Person ExtractPersonFromUI()
     {
+        int ID = currentPersonId ?? 0;
+        currentPersonId = null;
         return new Person 
         {
+            Id = ID,
             FirstName = string.IsNullOrWhiteSpace(FN.text) ? null : FN.text,
             LastName = string.IsNullOrWhiteSpace(LN.text) ? null : LN.text, 
             BirthName = string.IsNullOrWhiteSpace(BN.text) ? null : BN.text, 
@@ -29,6 +36,34 @@ public class UiExtractor : MonoBehaviour
         };
     }
 
+    public void LoadPerson(Person person)
+    {
+        parent1ID = null;
+        parent2ID = null;
+        currentPersonId = person.Id;
+
+        FN.text = person.FirstName;
+        LN.text = person.LastName;
+        BN.text = person.BirthName;
+        DOB.text = person.BirthDate;
+        DOD.text = person.DeathDate;
+        Bio.text = person.Biography;
+
+        if (person.BirthFamilyID is not null)
+        {
+            int? familyId = person.BirthFamilyID;
+            NuclearFamily family = Ds.db.Find<NuclearFamily>(familyId);
+
+            if (family.parent1ID is not null)
+            {
+                parent1ID = family.parent1ID;
+            }
+            if (family.parent2ID is not null)
+            {
+                parent2ID = family.parent2ID;
+            }
+        }
+    }
     public void SetParent1(int id)
     {
         parent1ID = Ds.matchingPeople[id - 1].Id;
@@ -36,5 +71,26 @@ public class UiExtractor : MonoBehaviour
     public void SetParent2(int id)
     {
         parent2ID = Ds.matchingPeople[id - 1].Id;
+    }
+
+    public void DeletePerson()
+    {
+        Ds.DeleteSomeone(Ds.db.Find<Person>(currentPersonId));
+        currentPersonId = null;
+    }
+
+    public void CleanPanel()
+    {
+        FN.text = "";
+        LN.text = "";
+        BN.text = "";
+        DOB.text = "";
+        DOD.text = "";
+        Bio.text = "";
+        Father.text = "";
+        Mother.text = "";
+        currentPersonId = null;
+        parent1ID = null;
+        parent2ID = null;
     }
 }

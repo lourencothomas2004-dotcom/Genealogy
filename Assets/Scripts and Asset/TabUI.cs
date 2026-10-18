@@ -4,6 +4,9 @@ using TMPro;
 
 public class TabUI : MonoBehaviour
 {
+    public Person personTab;
+    public GameObject InfoPanel;
+
     [Header("UI References")]
     public TMP_Text FN;
     public TMP_Text LN;
@@ -14,6 +17,13 @@ public class TabUI : MonoBehaviour
         FN.text = person.FirstName;
         LN.text = person.LastName;
         dates.text = $"{person.BirthDate}-{person.DeathDate}";
+
+        personTab = person;
     }
 
+    public void OpenInfoPanel()
+    {
+        InfoPanel.SetActive(true);
+        InfoPanel.GetComponent<InfoExtractor>().LoadPersonInfo(personTab);
+    }
 }

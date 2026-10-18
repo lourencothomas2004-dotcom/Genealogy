@@ -9,20 +9,10 @@ public class Main : MonoBehaviour
     public Transform MainCanva;
 
     public GameObject Tab;
+    public GameObject InfoPanel;
 
     public int? Id2Spawn;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
 
     public void SpawnTab()
     {
@@ -32,6 +22,7 @@ public class Main : MonoBehaviour
         newTab.transform.localScale = Vector3.one;
 
         newTab.GetComponent<TabUI>().UpdateTabInfo(Ds.db.Find<Person>(Id2Spawn));
+        newTab.GetComponent<TabUI>().InfoPanel = InfoPanel;
     }
 
     public void SetId2Spawn(int num)
@@ -67,5 +58,14 @@ public class Main : MonoBehaviour
         connectionLine.SetPosition(2, childMidPos);
         connectionLine.SetPosition(3, childPos);
 
+    }
+
+    public void ClearUI()
+    {
+        foreach (Transform child in MainCanva)
+        {
+            Destroy(child.gameObject);
+        }
+        Ds.peopleSpace = new Dictionary<Person, int>();
     }
 }

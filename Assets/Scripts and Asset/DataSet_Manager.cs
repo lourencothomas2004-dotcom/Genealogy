@@ -12,6 +12,9 @@ public class DataSet_Manager : MonoBehaviour
 
     public List<Person> matchingPeople;
 
+    public int minSpacex = 120;
+    public Dictionary<Person, int> peopleSpace;
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -21,6 +24,8 @@ public class DataSet_Manager : MonoBehaviour
         // Make sure the tables exist
         db.CreateTable<Person>();
         db.CreateTable<NuclearFamily>();
+
+        peopleSpace = new Dictionary<Person, int>();
     }
 
     void SavePerson(Person person)
@@ -43,6 +48,10 @@ public class DataSet_Manager : MonoBehaviour
         SavePerson(person);
     }
 
+    public int SpaceDown(Person person)
+    {
+        return 0;
+    }
     public void findOnName(string searchText)
     {
         matchingPeople = new List<Person>();
@@ -93,10 +102,10 @@ public class DataSet_Manager : MonoBehaviour
         NuclearFamily family;
         if (pID1 is null)
         {
-            family = db.Table<NuclearFamily>().Where(p => p.parent1ID == pID2).FirstOrDefault();
+            family = db.Table<NuclearFamily>().Where(p => p.parent2ID == pID2 && p.parent1ID == null).FirstOrDefault();
             if (family == null)
             {
-                NuclearFamily newFamily = new NuclearFamily { parent1ID = pID2, parent2ID = null };
+                NuclearFamily newFamily = new NuclearFamily { parent1ID = null, parent2ID = pID2 };
                 db.Insert(newFamily);
                 nuclearFamilyId = newFamily.Id;
             }
@@ -107,7 +116,7 @@ public class DataSet_Manager : MonoBehaviour
         }
         else if (pID2 is null)
         {
-            family = db.Table<NuclearFamily>().Where(p => p.parent1ID == pID1).FirstOrDefault();
+            family = db.Table<NuclearFamily>().Where(p => p.parent1ID == pID1 && p.parent2ID == null).FirstOrDefault();
             if (family == null)
             {
                 NuclearFamily newFamily = new NuclearFamily { parent1ID = pID1, parent2ID = null };
@@ -136,7 +145,7 @@ public class DataSet_Manager : MonoBehaviour
 
         return nuclearFamilyId;
     }
-    List<Person> FindAllChildren(Person parent)
+    public List<Person> FindAllChildren(Person parent)
     {
         List<Person> children = new List<Person>();
         List<NuclearFamily> families = db.Table<NuclearFamily>().Where(p => p.parent1ID == parent.Id || p.parent2ID == parent.Id).Distinct().ToList();
@@ -149,7 +158,7 @@ public class DataSet_Manager : MonoBehaviour
         return children;
     }
 
-    List<Person> FindChildren(Person parent1, Person parent2)
+    public List<Person> FindChildren(Person parent1, Person parent2)
     {
         List<Person> children = new List<Person>();
         NuclearFamily family = db.Table<NuclearFamily>().Where(p => (p.parent1ID == parent1.Id && p.parent2ID == parent2.Id) || (p.parent1ID == parent2.Id && p.parent2ID == parent1.Id)).FirstOrDefault();
@@ -162,6 +171,58 @@ public class DataSet_Manager : MonoBehaviour
         return children;
     }
 
+    public List<Person> FindSiblings(Person person)
+    {
+        if (person.BirthFamilyID is not null)
+        {
+            return db.Table<Person>().Where(p => p.BirthFamilyID == person.BirthFamilyID && p.Id != person.Id).ToList();
+        }
+        return null;
+    }
+
+    public void DeleteSomeone(Person person)
+    {
+        int targetId = person.Id;
+        List<NuclearFamily> families1 = db.Table<NuclearFamily>().Where(p => p.parent1ID == targetId).ToList();
+        List<NuclearFamily> families2 = db.Table<NuclearFamily>().Where(p => p.parent2ID == targetId).ToList();
+
+        foreach (NuclearFamily family in families1)
+        {
+            int currentFamilyId = family.Id;
+            foreach (Person child in db.Table<Person>().Where(p => p.BirthFamilyID == currentFamilyId))
+            {
+                if (family.parent2ID is null)
+                {
+                    child.BirthFamilyID = null;
+                }
+                else
+                {
+                    child.BirthFamilyID = FindOrCreateNuclearFamily(family.parent2ID, null);
+                }
+                db.Update(child);
+            }
+            db.Delete<NuclearFamily>(family.Id);
+        }
+
+        foreach (NuclearFamily family in families2)
+        {
+            int currentFamilyId = family.Id;
+            foreach (Person child in db.Table<Person>().Where(p => p.BirthFamilyID == currentFamilyId))
+            {
+                if (family.parent1ID is null)
+                {
+                    child.BirthFamilyID = null;
+                }
+                else
+                {
+                    child.BirthFamilyID = FindOrCreateNuclearFamily(family.parent1ID, null);
+                }
+                db.Update(child);
+            }
+            db.Delete<NuclearFamily>(family.Id);
+        }
+        db.Delete<Person>(person.Id);
+    }
     void OnApplicationQuit()
     {
         if (db != null)
