@@ -13,7 +13,9 @@ public class DataSet_Manager : MonoBehaviour
     public List<Person> matchingPeople;
 
     public int minSpacex = 120;
-    public Dictionary<Person, int> peopleSpace;
+    public int minSpacey = 200;
+    public Dictionary<int, int> peopleSpace;
+    public Dictionary<int, int> familySpace;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -25,7 +27,8 @@ public class DataSet_Manager : MonoBehaviour
         db.CreateTable<Person>();
         db.CreateTable<NuclearFamily>();
 
-        peopleSpace = new Dictionary<Person, int>();
+        peopleSpace = new Dictionary<int, int>();
+        familySpace = new Dictionary<int, int>();
     }
 
     void SavePerson(Person person)
@@ -48,9 +51,47 @@ public class DataSet_Manager : MonoBehaviour
         SavePerson(person);
     }
 
-    public int SpaceDown(Person person)
+    public int GetBloodDown(Person person)
     {
-        return 0;
+        if (peopleSpace.ContainsKey(person.Id)) 
+        {
+            return peopleSpace[person.Id];
+        }
+
+        int spaceNeeded = minSpacex; 
+
+        List<NuclearFamily> families = FindAllFamilies(person);
+        foreach (NuclearFamily family in families)
+        {
+            spaceNeeded += GetFamilySize(family); 
+        }
+
+        peopleSpace[person.Id] = spaceNeeded;
+        return spaceNeeded;
+    }
+
+    public int GetFamilySize(NuclearFamily family)
+    {
+        if (familySpace.ContainsKey(family.Id)) 
+        {
+            return familySpace[family.Id];
+        }
+
+        int spaceNeeded = 0;
+
+        if (family.parent1ID != null && family.parent2ID != null)
+        {
+            spaceNeeded += minSpacex;
+        }
+
+        List<Person> children = db.Table<Person>().Where(p => p.BirthFamilyID == family.Id).ToList();
+        foreach (Person child in children)
+        {
+            spaceNeeded += GetBloodDown(child);
+        }
+
+        familySpace[family.Id] = spaceNeeded;
+        return spaceNeeded;
     }
     public void findOnName(string searchText)
     {
@@ -145,10 +186,36 @@ public class DataSet_Manager : MonoBehaviour
 
         return nuclearFamilyId;
     }
+    
+    public List<NuclearFamily> FindAllFamilies(Person parent)
+    {
+        List<NuclearFamily> families = db.Table<NuclearFamily>().Where(p => p.parent1ID == parent.Id || p.parent2ID == parent.Id).Distinct().ToList();
+
+        for (int i = 0; i < families.Count; i++)
+        {
+            if ((families[i].parent1ID is not null && families[i].parent2ID is null) || (families[i].parent2ID is not null && families[i].parent1ID is null))
+            {
+                (families[0], families[i]) = (families[i], families[0]);
+            }
+        }
+
+        return families;
+    }
+    public List<Person> FindFamilyChildren(NuclearFamily family)
+    {
+        List<Person> children = new List<Person>();
+
+        if (family != null)
+        {
+            int familyID = family.Id;
+            children.AddRange(db.Table<Person>().Where(p => p.BirthFamilyID == familyID).ToList());
+        }
+        return children;
+    }
     public List<Person> FindAllChildren(Person parent)
     {
         List<Person> children = new List<Person>();
-        List<NuclearFamily> families = db.Table<NuclearFamily>().Where(p => p.parent1ID == parent.Id || p.parent2ID == parent.Id).Distinct().ToList();
+        List<NuclearFamily> families = FindAllFamilies(parent);
 
         foreach (NuclearFamily fam in families)
         {

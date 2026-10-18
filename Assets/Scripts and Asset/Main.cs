@@ -13,16 +13,58 @@ public class Main : MonoBehaviour
 
     public int? Id2Spawn;
 
+    public Dictionary<Person, GameObject> TabList = new Dictionary<Person, GameObject>();
+    public void buildTree()
+    {
+        ClearUI();
 
-    public void SpawnTab()
+        Person person = Ds.db.Find<Person>(Id2Spawn);
+        SpawnTab(person, Vector3.zero);
+
+        Ds.GetBloodDown(person);
+        List<NuclearFamily> families = Ds.FindAllFamilies(person);
+
+        if (families.Count == 0)
+        {
+            return;
+        }
+
+        float x = -1f * Ds.familySpace[families[0].Id];
+        float y = -1f * Ds.minSpacey;
+
+        
+
+    }
+
+    public void BuildFamilyDown(float x, float y, NuclearFamily family)
+    {
+        List<Person> children = Ds.FindFamilyChildren(family);
+
+        foreach (Person child in children)
+        {
+            SpawnTab(child, new Vector3(x, y, 0));
+            if (family.parent1ID is not null)
+            {
+                connections(TabList[Ds.db.Find<Person>(family.parent1ID)].GetComponent<RectTransform>(), TabList[child].GetComponent<RectTransform>());
+            }
+            if (family.parent2ID is not null)
+            {
+                connections(TabList[Ds.db.Find<Person>(family.parent2ID)].GetComponent<RectTransform>(), TabList[child].GetComponent<RectTransform>());
+            }
+            x += Ds.minSpacex; // Dois ajouter la récurcivité...
+        }
+    }
+    public void SpawnTab(Person person, Vector3 pos)
     {
         GameObject newTab = Instantiate(Tab, MainCanva);
 
-        newTab.transform.localPosition = Vector3.zero;
+        newTab.transform.localPosition = pos;
         newTab.transform.localScale = Vector3.one;
 
-        newTab.GetComponent<TabUI>().UpdateTabInfo(Ds.db.Find<Person>(Id2Spawn));
+        newTab.GetComponent<TabUI>().UpdateTabInfo(person);
         newTab.GetComponent<TabUI>().InfoPanel = InfoPanel;
+
+        TabList[person] = newTab;
     }
 
     public void SetId2Spawn(int num)
@@ -66,6 +108,7 @@ public class Main : MonoBehaviour
         {
             Destroy(child.gameObject);
         }
-        Ds.peopleSpace = new Dictionary<Person, int>();
+        Ds.peopleSpace = new Dictionary<int, int>();
+        Ds.familySpace = new Dictionary<int, int>();
     }
 }
